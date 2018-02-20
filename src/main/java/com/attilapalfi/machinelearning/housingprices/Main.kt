@@ -33,9 +33,9 @@ private fun getFlat(href: String): Flat {
     val rooms = flatPage.select("div.parameter-room").select("span.parameter-value").text().trim()
     val price = flatPage.select("div.parameter-price").select("span.parameter-value").text().trim()
     val subType = flatPage.select("div.listing-subtype").text().trim()
-    val settlementString = flatPage.select("h1.js-listing-title").text().trim()
-    val settlement = settlementString.split(",")[0].trim()
-    val settlementSub = settlementString.split(",")[1].trim()
+    val settlementArray = flatPage.select("h1.js-listing-title").text().trim().split(",")
+    val settlement = if (settlementArray.isNotEmpty()) { settlementArray[0].trim() } else { "nincs megadva" }
+    val settlementSub = if (settlementArray.size > 1) { settlementArray[1].trim() } else { "nincs megadva" }
 
     val params = flatPage.select("div.paramterers")
     val elements = params[0].allElements.filter { it.`is`("td") }
