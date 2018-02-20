@@ -1,4 +1,4 @@
-package com.attilapalfi.machinelearning.housingprices
+package com.attilapalfi.machinelearning.housingprices.ingatlancomscraper
 
 
 data class Flat(val price: String = "", val subType: String = "", val size: String = "", val rooms: String = "",
