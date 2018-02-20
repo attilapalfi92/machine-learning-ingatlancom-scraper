@@ -12,7 +12,6 @@ import java.util.concurrent.ConcurrentHashMap
 class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunner {
 
     private val log = LoggerFactory.getLogger(this.javaClass)
-    private val flats = ConcurrentHashMap.newKeySet<Flat>()
 
     override fun run(vararg args: String?) {
         var pageNumber = 1
@@ -81,7 +80,6 @@ class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunn
     }
 
     private fun storeFlat(flat: Flat) {
-        flats.add(flat)
         flatRepository.save(flat)
     }
 }
