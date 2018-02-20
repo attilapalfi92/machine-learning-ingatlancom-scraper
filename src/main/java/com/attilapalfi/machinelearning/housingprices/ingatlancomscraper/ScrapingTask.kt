@@ -3,19 +3,22 @@ package com.attilapalfi.machinelearning.housingprices.ingatlancomscraper
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import org.slf4j.LoggerFactory
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
 import java.util.concurrent.ConcurrentHashMap
 
 @Component
-class ScrapingTask : CommandLineRunner {
+class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunner {
 
+    private val log = LoggerFactory.getLogger(this.javaClass)
     private val flats = ConcurrentHashMap.newKeySet<Flat>()
 
     override fun run(vararg args: String?) {
         var pageNumber = 1
         do {
             val page = Jsoup.connect("https://ingatlan.com/lista/elado+lakas?page=$pageNumber").get()
+            log.info("Scraping page $page")
             val flatList = getFlatList(page)
             flatList.map { it.select("a[title=\"Részletek\"]").attr("href") }
                     .parallelStream()
@@ -79,5 +82,6 @@ class ScrapingTask : CommandLineRunner {
 
     private fun storeFlat(flat: Flat) {
         flats.add(flat)
+        flatRepository.save(flat)
     }
 }
