@@ -3,23 +3,31 @@ package com.attilapalfi.machinelearning.housingprices
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.util.concurrent.ConcurrentHashMap
 
+val flats = ConcurrentHashMap.newKeySet<Flat>()
 
 fun main(args: Array<String>) {
-    val propertyPage = getPropertyPage(1)
-    propertyPage.map { it.select("a[title=\"Részletek\"]").attr("href") }
-            .parallelStream()
-            .map{ getFlat(it) }
-            .forEach { storeFlat(it) }
+    var pageNumber = 1
+    do {
+        val page = Jsoup.connect("https://ingatlan.com/lista/elado+lakas?page=$pageNumber").get()
+        val flatList = getFlatList(page)
+        flatList.map { it.select("a[title=\"Részletek\"]").attr("href") }
+                .parallelStream()
+                .map { getFlat(it) }
+                .forEach { storeFlat(it) }
+        pageNumber++
+    } while (hasNextPage(page))
 }
 
-private fun getPropertyPage(page: Int): List<Element> {
-    val doc = Jsoup.connect("https://ingatlan.com/lista/elado+lakas?page=$page").get()
-    val houseList = doc.select("div.resultspage__listings")
+fun hasNextPage(page: Document): Boolean = page.body().text().contains("Következő oldal")
+
+private fun getFlatList(page: Document): List<Element> {
+    val houseList = page.select("div.resultspage__listings")
     return houseList[0].children().filter { e -> e.hasAttr("data-id") }
 }
 
-private fun getFlat(href: String) : Flat {
+private fun getFlat(href: String): Flat {
     val flatPage: Document = Jsoup.connect("https://ingatlan.com$href").get()
     val size = flatPage.select("div.parameter-area-size").select("span.parameter-value").text().trim()
     val rooms = flatPage.select("div.parameter-room").select("span.parameter-value").text().trim()
@@ -64,6 +72,6 @@ private fun getParameter(elements: List<Element>, paramName: String): String {
     return elements[index + 1].text()
 }
 
-fun storeFlat(it: Flat) {
-
+fun storeFlat(flat: Flat) {
+    flats.add(flat)
 }
