@@ -6,7 +6,6 @@ import org.jsoup.nodes.Element
 import org.slf4j.LoggerFactory
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
-import java.util.concurrent.ConcurrentHashMap
 
 @Component
 class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunner {
