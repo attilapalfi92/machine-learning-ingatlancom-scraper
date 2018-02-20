@@ -18,7 +18,7 @@ class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunn
         var pageNumber = 1
         do {
             val page = Jsoup.connect("https://ingatlan.com/lista/elado+lakas?page=$pageNumber").get()
-            log.info("Scraping page $page")
+            log.info("Scraping page $pageNumber")
             val flatList = getFlatList(page)
             flatList.map { it.select("a[title=\"Részletek\"]").attr("href") }
                     .parallelStream()
