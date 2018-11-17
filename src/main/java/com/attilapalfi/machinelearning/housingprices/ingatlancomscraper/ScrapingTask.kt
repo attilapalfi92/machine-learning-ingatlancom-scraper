@@ -12,16 +12,24 @@ class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunn
 
     private val log = LoggerFactory.getLogger(this.javaClass)
 
+    private val sleepMillis = 2000L
+
+    private val maxRetries = 10
+
+    private val startPage = 891
+
     override fun run(vararg args: String?) {
         var pageNumber = 1
         do {
-            val page = Jsoup.connect("https://ingatlan.com/lista/elado+lakas?page=$pageNumber").get()
-            log.info("Scraping page $pageNumber")
-            val flatList = getFlatList(page)
-            flatList.map { it.select("a[title=\"Részletek\"]").attr("href") }
-                    .parallelStream()
-                    .map { getFlat(it) }
-                    .forEach { storeFlat(it) }
+            val page = tryDownloadingPage(1, "https://ingatlan.com/lista/elado+lakas?page=$pageNumber")
+            if (pageNumber >= startPage) {
+                log.info("Scraping page $pageNumber")
+                val flatList = getFlatList(page)
+                flatList.map { it.select("a[title=\"Részletek\"]").attr("href") }
+                        .parallelStream()
+                        .map { getFlat(it) }
+                        .forEach { tryStoringFlat(it) }
+            }
             pageNumber++
         } while (hasNextPage(page))
     }
@@ -34,14 +42,22 @@ class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunn
     }
 
     private fun getFlat(href: String): Flat {
-        val flatPage: Document = Jsoup.connect("https://ingatlan.com$href").get()
+        val flatPage: Document = tryDownloadingPage(1, "https://ingatlan.com$href")
         val size = flatPage.select("div.parameter-area-size").select("span.parameter-value").text().trim()
         val rooms = flatPage.select("div.parameter-room").select("span.parameter-value").text().trim()
         val price = flatPage.select("div.parameter-price").select("span.parameter-value").text().trim()
         val subType = flatPage.select("div.listing-subtype").text().trim()
         val settlementArray = flatPage.select("h1.js-listing-title").text().trim().split(",")
-        val settlement = if (settlementArray.isNotEmpty()) { settlementArray[0].trim() } else { "nincs megadva" }
-        val settlementSub = if (settlementArray.size > 1) { settlementArray[1].trim() } else { "nincs megadva" }
+        val settlement = if (settlementArray.isNotEmpty()) {
+            settlementArray[0].trim()
+        } else {
+            "nincs megadva"
+        }
+        val settlementSub = if (settlementArray.size > 1) {
+            settlementArray[1].trim()
+        } else {
+            "nincs megadva"
+        }
 
         val params = flatPage.select("div.paramterers")
         val elements = params[0].allElements.filter { it.`is`("td") }
@@ -70,6 +86,25 @@ class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunn
         )
     }
 
+    private fun tryDownloadingPage(tries: Int, url: String): Document {
+        return try {
+            getPage(url)
+        } catch (e: Throwable) {
+            log.warn("[Page Download] Exception occurred at try number $tries. ${e.javaClass.name}: ${e.message}")
+            if (tries <= maxRetries) {
+                log.info("[Page Download] Sleeping for $sleepMillis ms")
+                Thread.sleep(sleepMillis)
+                tryDownloadingPage(tries + 1, url)
+            } else {
+                log.error("[Page Download] Tried $maxRetries times, out of options. :(")
+                throw e
+            }
+        }
+    }
+
+    private fun getPage(url: String): Document = Jsoup.connect(url).get()
+
+
     private fun getParameter(elements: List<Element>, paramName: String): String {
         val index = elements.indexOfFirst { it.text().contains(paramName) }
         if (index == -1) {
@@ -78,7 +113,23 @@ class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunn
         return elements[index + 1].text()
     }
 
-    private fun storeFlat(flat: Flat) {
-        flatRepository.save(flat)
+    private fun tryStoringFlat(flat: Flat) {
+        storeFlat(1, flat)
+    }
+
+    private fun storeFlat(tries: Int, flat: Flat) {
+        try {
+            flatRepository.save(flat)
+        } catch (e: Throwable) {
+            log.warn("[Flat save] Exception occurred at try number $tries. ${e.javaClass.name}: ${e.message}")
+            if (tries <= maxRetries) {
+                log.info("[Flat save] Sleeping for $sleepMillis ms")
+                Thread.sleep(sleepMillis)
+                storeFlat(tries + 1, flat)
+            } else {
+                log.error("[Flat save] Tried $maxRetries times, out of options. :(")
+                throw e
+            }
+        }
     }
 }
