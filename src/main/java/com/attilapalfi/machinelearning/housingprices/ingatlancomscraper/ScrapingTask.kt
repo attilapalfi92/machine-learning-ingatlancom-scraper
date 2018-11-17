@@ -16,14 +16,14 @@ class ScrapingTask(private val flatRepository: FlatRepository) : CommandLineRunn
 
     private val maxRetries = 10
 
-    private val startPage = 891
+    private val startPage = 961
 
     override fun run(vararg args: String?) {
         var pageNumber = 1
         do {
+            log.info("Scraping page $pageNumber")
             val page = tryDownloadingPage(1, "https://ingatlan.com/lista/elado+lakas?page=$pageNumber")
             if (pageNumber >= startPage) {
-                log.info("Scraping page $pageNumber")
                 val flatList = getFlatList(page)
                 flatList.map { it.select("a[title=\"Részletek\"]").attr("href") }
                         .parallelStream()
